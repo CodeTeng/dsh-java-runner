@@ -2,7 +2,7 @@
 
 为 [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/) 提供 Java 编译、运行与测试工具。
 
-> **状态：alpha。** `java_env`、`java_compile`、`java_run`、`java_test` 已实现并在本机 JDK 上通过测试。插件尚未发布，探测版之前 schema 仍可能变化。
+> **状态：alpha。** `java_env`、`java_compile`、`java_run`、`java_test` 已实现，并通过确定性的 fake-JDK 测试与本机 JDK 集成测试。插件尚未发布，探测版之前 schema 仍可能变化。
 
 ## 为什么不用 bash
 
@@ -75,7 +75,7 @@ pnpm test
 pnpm build
 ```
 
-`pnpm test` 通过真实的 DSH 工具运行时和本地 subprocess provider 运行集成测试；`PATH` 上没有 `javac` 时，依赖 JDK 的用例会自动跳过。`java_test` 用例还要求 JDK 17+，以及 `~/.m2`、`~/.dsh-java-runner/junit/` 或 `JUNIT_JAR` 中存在 JUnit jar。
+`pnpm test` 包含一套不依赖 JDK 和网络的 fake-JDK 测试：用伪造的 subprocess 服务返回预置的 `javac`/`java` 输出，因此编译、运行和测试路径在任何机器上都可确定地验证。当 `PATH` 上有 `javac` 时，还会运行真实 JDK 集成测试；`java_test` 用例要求 JDK 17+，以及 `~/.m2`、`~/.dsh-java-runner/junit/` 或 `JUNIT_JAR` 中的 JUnit jar。CI 在 Ubuntu 和 Windows 上运行 typecheck、测试和构建，无需安装 JDK。
 
 本地开发时，Electron desktop profile 通过 bundle patch 加载插件：在 `~/.dsh/profiles/desktop/package.json` 中添加指向本仓库的 `link:` 依赖，在 `dsh.profile.bundles` 中登记 `dsh-java-runner`，使用应用自带 pnpm 安装后重启应用。
 

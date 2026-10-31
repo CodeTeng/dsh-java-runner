@@ -2,7 +2,7 @@
 
 Java compile, run, and test tools for [DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/).
 
-> **Status: alpha.** `java_env`, `java_compile`, `java_run`, and `java_test` are implemented and tested against a local JDK. The plugin is not published yet; schemas may change before the probe release.
+> **Status: alpha.** `java_env`, `java_compile`, `java_run`, and `java_test` are implemented and covered by a deterministic fake-JDK suite plus local JDK integration tests. The plugin is not published yet; schemas may change before the probe release.
 
 ## Why
 
@@ -75,7 +75,7 @@ pnpm test
 pnpm build
 ```
 
-`pnpm test` runs integration tests through a real DSH tool runtime and local subprocess provider; JDK-dependent cases skip automatically when `javac` is not on `PATH`. `java_test` cases additionally require JDK 17+ and a JUnit jar in `~/.m2`, `~/.dsh-java-runner/junit/`, or `JUNIT_JAR`.
+`pnpm test` runs a fake-JDK harness that needs neither a JDK nor network access: a fake subprocess service returns canned `javac`/`java` output, so compile, run, and test paths are deterministic on any machine. Real-JDK integration tests run additionally when `javac` is on `PATH`; `java_test` cases require JDK 17+ and a JUnit jar in `~/.m2`, `~/.dsh-java-runner/junit/`, or `JUNIT_JAR`. CI runs typecheck, tests, and build on Ubuntu and Windows without installing a JDK.
 
 For local development, the Electron desktop profile loads the plugin through its bundle patch: add a `link:` dependency on this checkout to `~/.dsh/profiles/desktop/package.json`, list `dsh-java-runner` under `dsh.profile.bundles`, install with the pnpm bundled with the app, and restart the app.
 

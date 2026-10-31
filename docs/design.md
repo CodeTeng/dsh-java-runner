@@ -159,11 +159,11 @@ Implemented in `0.1.0-alpha.0`:
 - Scratch directories are removed on success and retained with a reason on failure (ADR-0007).
 - `java_test` compiles production and test sources against the pinned JUnit console jar, runs scanned or selected tests, and returns totals plus failures with stack traces. The jar resolves through `junitJarPath`, m2, the verified cache, or a verified download (ADR-0008).
 - JUnit XML parsing covers passing, failing, erroring, and skipped cases, CDATA stack traces, XML entities, and Unicode test names.
+- A fake-JDK harness replaces the subprocess service with canned `javac`/`java` results, so the full compile/run/test path is covered deterministically without a local JDK or network. GitHub Actions runs typecheck, tests, and build on Ubuntu and Windows without installing a JDK.
 - The plugin loads in the Electron desktop app through the bundled profile patch with a `link:` dependency in the desktop profile.
 
 Outstanding before the probe release:
 
-- Add a fake-JDK integration harness so CI does not need a local JDK.
 - Verify `workspace-write` confinement in the Electron desktop app, not only in the test harness.
 - Publish the probe release and collect feedback.
 
@@ -175,8 +175,10 @@ Phase 3: Maven/Gradle delegation, JShell or a hot JVM, an optional Docker backen
 
 - Unit: `javac` diagnostic parser (positions, file-less diagnostics, Windows drive paths, coverage, unknown lines) and JUnit XML parser (failures, errors, skipped cases, CDATA, entities, Unicode, missing directory).
 - Integration: real `ToolRuntime` + `LocalSubprocessRuntime` + a temporary workspace; JDK-dependent cases skip when `javac` is absent. JUnit cases additionally require JDK 17+ and a resolvable console jar.
+- Fake-JDK: a fake `subprocess` service returns canned `javac`/`java` output, rejects or delays commands on demand, and records every argv/stdin/env/cwd. It covers JDK discovery and failure, compile diagnostics, run argv and stdin, nonzero exits, timeout termination, sandbox confinement, JUnit totals and failures, no-tests failure, and compile-failure short circuit without a JDK. A fake executable was rejected because the Windows provider resolves only `.com`/`.exe`, so a portable fake needs the service seam.
 - Covered: multi-file compile, cleanup and retention, structured errors, non-ASCII diagnostics and program output, stdin/args, nonzero exits, timeout termination, heap cap, sandbox confinement, the input boundary, and `java_test` pass/fail/skip totals, failure stack traces, method selectors, no-tests failure, compile-failure short circuit, and test timeout.
-- Planned: fake-JDK executables with canned output, and a Windows/Linux CI matrix with JDK 17 and 21.
+- CI: `.github/workflows/ci.yml` runs `pnpm install --frozen-lockfile`, typecheck, test, and build on Ubuntu and Windows with Node 24 and pnpm 10.12.1. No JDK is installed, so the real-JDK suites skip and the fake-JDK suite provides coverage.
+- Planned: a Windows/Linux CI matrix that installs JDK 17 and 21 and seeds the JUnit jar to exercise the real-JDK suites.
 
 ## 14. Risks
 
