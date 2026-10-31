@@ -19,7 +19,17 @@ import {
   truncationNote,
 } from './shared.js'
 
-const MAIN_CLASS = /^[A-Za-z_$][A-Za-z0-9_$]*(\.[A-Za-z_$][A-Za-z0-9_$]*)*$/
+const IDENTIFIER_START = /^[\p{L}\p{Nl}\p{Sc}\p{Pc}]$/u
+const IDENTIFIER_PART = /^[\p{L}\p{Nl}\p{Sc}\p{Pc}\p{Mn}\p{Mc}\p{Nd}\p{Cf}]$/u
+
+function isValidMainClass(name: string): boolean {
+  if (name === '') return false
+  return name.split('.').every((segment) => {
+    const chars = [...segment]
+    if (chars.length === 0 || !IDENTIFIER_START.test(chars[0]!)) return false
+    return chars.slice(1).every((char) => IDENTIFIER_PART.test(char))
+  })
+}
 
 const compileSummarySchema = {
   oneOf: [
@@ -234,9 +244,9 @@ export function registerRunTool(
       },
       async execute(args, exec) {
         const main = args.main.trim()
-        if (!MAIN_CLASS.test(main)) {
+        if (!isValidMainClass(main)) {
           throw new Error(
-            `main must be a valid fully qualified class name (for example "Main" or "com.example.Main"), got "${args.main}"`,
+            `main must be a valid fully qualified Java class name (for example "Main" or "com.example.Main"), got "${args.main}"`,
           )
         }
         const programArgs = args.args ?? []

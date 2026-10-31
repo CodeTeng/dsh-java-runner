@@ -214,6 +214,58 @@ describe.skipIf(!hasJdk)('java tools with a real JDK', () => {
     expect(value.stdout.trim()).toBe('你好，世界')
   })
 
+  it('runs a main class with a Unicode name', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_run', {
+      main: '你好',
+      files: [
+        {
+          path: '你好.java',
+          content:
+            'public class 你好 { public static void main(String[] a) { System.out.println("你好，世界"); } }',
+        },
+      ],
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as { success: boolean; stdout: string }
+    expect(value.success).toBe(true)
+    expect(value.stdout.trim()).toBe('你好，世界')
+  })
+
+  it('rejects malformed main class names', async () => {
+    harness = await createHarness()
+    for (const main of ['Main; calc', '1Main', 'a..b', 'com.example.']) {
+      const result = await harness.execute('java_run', { main })
+      expect(result.isError).toBe(true)
+    }
+  })
+
+  it('reports the class files directory for a kept compile', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_compile', {
+      files: [
+        {
+          path: 'Main.java',
+          content: 'public class Main { public static void main(String[] a) {} }',
+        },
+      ],
+      keepWorkdir: true,
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as {
+      success: boolean
+      retained: boolean
+      workdir: string | null
+      outDir: string | null
+    }
+    expect(value.success).toBe(true)
+    expect(value.retained).toBe(true)
+    expect(value.workdir).not.toBeNull()
+    expect(value.outDir).toBe(join(value.workdir!, 'classes'))
+  })
+
   it('enforces the heap cap', async () => {
     harness = await createHarness()
     const result = await harness.execute('java_run', {

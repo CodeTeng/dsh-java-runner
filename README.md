@@ -17,7 +17,7 @@ Bash can invoke `javac`, but agent sessions systematically get four things wrong
 
 | Tool | Purpose | Status |
 | --- | --- | --- |
-| `java_env` | Discover JDKs: candidates, versions, vendors, resolved choice | Implemented |
+| `java_env` | Report the resolved JDK and the candidates probed from config, `JAVA_HOME`, and `PATH` | Implemented |
 | `java_compile` | Compile inline or workspace-relative sources; return structured diagnostics | Implemented |
 | `java_run` | Compile if needed and run a Java entry point with args, stdin, timeout, and heap cap | Implemented |
 | `java_test` | Run JUnit 5 tests and return structured results | Phase 2 |

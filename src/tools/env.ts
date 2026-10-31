@@ -22,7 +22,7 @@ export function registerEnvTool(ctx: Context, resolver: JdkResolver): void {
     defineTool({
       name: 'java_env',
       description:
-        'Discover the JDKs available to this session and show which one java_compile and java_run will use. Reports javac/java paths, versions, vendors, and actionable guidance when no JDK is installed. Prefer this over running "java -version" in a shell: the result is structured and consistent across hosts.',
+        'Report which JDK java_compile and java_run will use. Candidates are probed in order from the plugin config, JAVA_HOME, then PATH; failed candidates are shown with their error. Prefer this over running "java -version" in a shell: the result is structured and consistent across hosts.',
       parameters: {},
       output: {
         schema: {
@@ -58,6 +58,10 @@ export function registerEnvTool(ctx: Context, resolver: JdkResolver): void {
             `javac: ${resolved.javacPath ?? 'missing'}`,
             `java: ${resolved.javaPath ?? 'missing'}`,
           ]
+          lines.push(
+            '',
+            'Discovery order: plugin config, JAVA_HOME, PATH. Set "javaHome" in the plugin configuration to select a different JDK.',
+          )
           const failed = value.candidates.filter(
             (candidate) => candidate.error !== null && candidate.home !== resolved.home,
           )

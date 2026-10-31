@@ -17,7 +17,7 @@ bash 能调用 `javac`，但 Agent 会话会系统性地在四件事上出错：
 
 | 工具 | 用途 | 状态 |
 | --- | --- | --- |
-| `java_env` | 探测本机 JDK：候选、版本、vendor、当前选用 | 已实现 |
+| `java_env` | 报告当前选用的 JDK，以及从 config、`JAVA_HOME`、`PATH` 探测到的候选 | 已实现 |
 | `java_compile` | 编译内联或工作区相对路径源码，返回结构化诊断 | 已实现 |
 | `java_run` | 按需编译并运行 Java 入口，支持参数、stdin、超时、堆上限 | 已实现 |
 | `java_test` | 运行 JUnit 5 测试并返回结构化结果 | Phase 2 |

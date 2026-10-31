@@ -111,6 +111,9 @@ export function registerCompileTool(
           }
           if (value.retained && value.workdir !== null) {
             lines.push('', `Scratch directory kept at ${value.workdir}`)
+            if (value.outDir !== null) {
+              lines.push(`Class files: ${value.outDir}`)
+            }
           }
           return [{ type: 'text', text: lines.join('\n') }]
         },
