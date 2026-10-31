@@ -1,0 +1,6 @@
+Bad.java:1:65: compiler.err.illegal.start.of.expr
+Miss.java:1:39: compiler.err.cant.resolve.location: kindname.variable, foo, , , (compiler.misc.location: kindname.class, Miss, null)
+- compiler.warn.path.element.not.found: D:\java_config\Java\jdk-17.0.4\lib\dt.jar
+Warn.java:2:31: compiler.warn.raw.class.use: java.util.List, java.util.List<E>
+2 errors
+1 warning

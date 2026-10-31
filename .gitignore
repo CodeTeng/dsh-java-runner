@@ -1,0 +1,9 @@
+node_modules/
+lib/
+dist/
+coverage/
+*.tsbuildinfo
+.dsh-java/
+*.log
+.DS_Store
+Thumbs.db

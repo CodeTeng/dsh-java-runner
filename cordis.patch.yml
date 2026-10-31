@@ -1,0 +1,8 @@
+# dsh-java-runner bundle layer: inserts the plugin row.
+# The loader resolves the package entry from the profile's node_modules.
+- insert:
+    - id: dsh-java-runner
+      name: dsh-java-runner
+      config:
+        timeoutMs: 15000
+        maxHeapMb: 256
