@@ -8,7 +8,7 @@ import { createScratch, removeScratch } from '../inputs.js'
 import type { JdkResolver } from '../jdk.js'
 import { runJava } from '../run.js'
 import {
-  compileResultProperties,
+  compileSummarySchema,
   countSeverities,
   decideRetention,
   nullableNumber,
@@ -30,27 +30,6 @@ function isValidMainClass(name: string): boolean {
     return chars.slice(1).every((char) => IDENTIFIER_PART.test(char))
   })
 }
-
-const compileSummarySchema = {
-  oneOf: [
-    { type: 'null' },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        success: compileResultProperties.success,
-        diagnostics: compileResultProperties.diagnostics,
-        unknownLines: compileResultProperties.unknownLines,
-        coverage: compileResultProperties.coverage,
-        durationMs: compileResultProperties.durationMs,
-        sandboxDenied: compileResultProperties.sandboxDenied,
-        runnerFailure: compileResultProperties.runnerFailure,
-        outputTruncated: compileResultProperties.outputTruncated,
-      },
-    },
-  ],
-  required: true,
-} as const
 
 const filesSchema = {
   type: 'array',

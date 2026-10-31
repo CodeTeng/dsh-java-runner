@@ -95,6 +95,27 @@ export const compileResultProperties = {
   stderrSpillPath: nullableString,
 } as const
 
+export const compileSummarySchema = {
+  oneOf: [
+    { type: 'null' },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: compileResultProperties.success,
+        diagnostics: compileResultProperties.diagnostics,
+        unknownLines: compileResultProperties.unknownLines,
+        coverage: compileResultProperties.coverage,
+        durationMs: compileResultProperties.durationMs,
+        sandboxDenied: compileResultProperties.sandboxDenied,
+        runnerFailure: compileResultProperties.runnerFailure,
+        outputTruncated: compileResultProperties.outputTruncated,
+      },
+    },
+  ],
+  required: true,
+} as const
+
 export interface RetentionInput {
   keepWorkdir: boolean
   success: boolean

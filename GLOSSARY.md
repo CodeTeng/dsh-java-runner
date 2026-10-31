@@ -40,6 +40,24 @@ _Avoid_: parse rate, success rate
 A line of compiler output that no diagnostic rule matched, surfaced verbatim so a parser gap is never mistaken for a clean compile.
 _Avoid_: noise, leftover
 
+### Testing
+
+**JUnit console jar**:
+The pinned `junit-platform-console-standalone` launcher that discovers and runs tests and writes XML reports.
+_Avoid_: junit jar, runner jar, standalone runner
+
+**Test selector**:
+A class or method reference (`Class` or `Class#method`) that limits which tests run; omitting selectors scans the classpath.
+_Avoid_: filter, test name
+
+**Test report**:
+The JUnit XML files written under the scratch `reports/` directory and parsed into totals.
+_Avoid_: XML output, results file
+
+**Test failure**:
+A failing or erroring test case normalized to a test id, message, and stack trace.
+_Avoid_: exception, broken test
+
 ### Environment
 
 **JDK candidate**:

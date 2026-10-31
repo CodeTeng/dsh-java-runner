@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -8,14 +9,40 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import * as plugin from '../src/index.js'
 
-const hasJdk = (() => {
+const JUNIT_FILENAME = 'junit-platform-console-standalone-1.13.4.jar'
+
+const jdkMajor = (() => {
   try {
-    execFileSync('javac', ['-version'], { stdio: 'ignore' })
-    return true
+    const output = execFileSync('javac', ['-version'], { encoding: 'utf8' })
+    const version = /javac (\d+)/.exec(output)?.[1]
+    return version === undefined ? 0 : Number(version)
   } catch {
-    return false
+    return 0
   }
 })()
+
+const hasJdk = jdkMajor > 0
+
+const junitJar = (() => {
+  const candidates: (string | undefined)[] = [
+    process.env['JUNIT_JAR'],
+    join(
+      homedir(),
+      '.m2',
+      'repository',
+      'org',
+      'junit',
+      'platform',
+      'junit-platform-console-standalone',
+      '1.13.4',
+      JUNIT_FILENAME,
+    ),
+    join(homedir(), '.dsh-java-runner', 'junit', JUNIT_FILENAME),
+  ]
+  return candidates.find((candidate) => candidate !== undefined && existsSync(candidate)) ?? null
+})()
+
+const canRunJunit = jdkMajor >= 17 && junitJar !== null
 
 interface Harness {
   ctx: Context
@@ -29,6 +56,7 @@ const workspaces: string[] = []
 
 async function createHarness(options?: {
   mode?: 'workspace-write' | 'danger-full-access'
+  config?: { junitJarPath?: string }
 }): Promise<Harness> {
   const workspace = await mkdtemp(join(tmpdir(), 'dsh-java-runner-test-'))
   workspaces.push(workspace)
@@ -55,7 +83,7 @@ async function createHarness(options?: {
       },
     } as never)
   }
-  await ctx.plugin(plugin)
+  await ctx.plugin(plugin, options?.config as never)
 
   let counter = 0
   return {
@@ -90,7 +118,7 @@ afterAll(async () => {
 describe('plugin loading', () => {
   it('registers the Java tools in a real tool runtime', async () => {
     harness = await createHarness()
-    for (const name of ['java_env', 'java_compile', 'java_run']) {
+    for (const name of ['java_env', 'java_compile', 'java_run', 'java_test']) {
       expect(harness.ctx.tools.get(name)?.name).toBe(name)
     }
   })
@@ -398,4 +426,180 @@ public class Main {
     expect(harness.sandboxCalls).toHaveLength(2)
     expect(value.stdout.trim()).toBe('ok')
   })
+})
+
+interface JunitResult {
+  success: boolean
+  timedOut: boolean
+  exitCode: number | null
+  total: number
+  passed: number
+  failed: number
+  skipped: number
+  failures: { test: string; message: string; stackTrace: string }[]
+  reportFiles: number
+  compile: { success: boolean; diagnostics: unknown[] } | null
+  jar: { path: string; version: string | null; source: string }
+  reportsDir: string | null
+  workdir: string | null
+  outDir: string | null
+  retained: boolean
+  stdout: string
+  stderr: string
+}
+
+describe.skipIf(!canRunJunit)('java_test with a real JDK and JUnit', () => {
+  async function execute(args: unknown): Promise<JunitResult> {
+    harness = await createHarness({ config: { junitJarPath: junitJar ?? undefined } })
+    const result = await harness.execute('java_test', args)
+    expect(result.isError).toBe(false)
+    if (result.isError) throw new Error('java_test returned a tool error')
+    return result.value as unknown as JunitResult
+  }
+
+  const calculator = `import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class CalcTest {
+  @Test
+  void adds() { assertEquals(2, 1 + 1); }
+  @Test
+  void subtracts() { assertEquals(2, 3 - 2); }
+  @Disabled("not yet")
+  @Test
+  void todo() { }
+}`
+
+  it('reports passing, failing, and skipped tests with stack traces', async () => {
+    const value = await execute({
+      files: [{ path: 'test/CalcTest.java', content: calculator }],
+    })
+
+    expect(value.compile?.success).toBe(true)
+    expect(value.success).toBe(false)
+    expect(value.exitCode).toBe(1)
+    expect(value.total).toBe(3)
+    expect(value.passed).toBe(1)
+    expect(value.failed).toBe(1)
+    expect(value.skipped).toBe(1)
+    expect(value.reportFiles).toBeGreaterThan(0)
+    expect(value.failures).toHaveLength(1)
+    expect(value.failures[0]?.test).toContain('CalcTest#subtracts')
+    expect(value.failures[0]?.message).toContain('expected: <2>')
+    expect(value.failures[0]?.stackTrace).toContain('AssertionFailedError')
+    expect(value.retained).toBe(true)
+    expect(value.workdir).not.toBeNull()
+    expect(value.reportsDir).toBe(join(value.workdir!, 'reports'))
+  })
+
+  it('cleans up the scratch directory when every test passes', async () => {
+    const value = await execute({
+      files: [
+        {
+          path: 'CalcTest.java',
+          content: `import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class CalcTest {
+  @Test
+  void adds() { assertEquals(2, 1 + 1); }
+}`,
+        },
+      ],
+    })
+
+    expect(value.success).toBe(true)
+    expect(value.exitCode).toBe(0)
+    expect(value.total).toBe(1)
+    expect(value.passed).toBe(1)
+    expect(value.failed).toBe(0)
+    expect(value.failures).toEqual([])
+    expect(value.retained).toBe(false)
+    expect(value.workdir).toBeNull()
+    expect(value.reportsDir).toBeNull()
+    expect(value.jar.path).toBe(junitJar)
+  })
+
+  it('selects a single test method by name', async () => {
+    const value = await execute({
+      files: [
+        {
+          path: 'SelectorTest.java',
+          content: `import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class SelectorTest {
+  @Test
+  void adds() { assertTrue(true); }
+  @Test
+  void other() { assertTrue(true); }
+}`,
+        },
+      ],
+      tests: ['SelectorTest#adds'],
+    })
+
+    expect(value.success).toBe(true)
+    expect(value.total).toBe(1)
+    expect(value.passed).toBe(1)
+  })
+
+  it('fails when no tests are discovered', async () => {
+    const value = await execute({
+      files: [
+        {
+          path: 'Plain.java',
+          content: 'public class Plain { static int add(int a, int b) { return a + b; } }',
+        },
+      ],
+    })
+
+    expect(value.success).toBe(false)
+    expect(value.exitCode).toBe(2)
+    expect(value.total).toBe(0)
+    expect(value.retained).toBe(true)
+  })
+
+  it('returns compile diagnostics without starting the JUnit run', async () => {
+    const value = await execute({
+      files: [
+        {
+          path: 'BrokenTest.java',
+          content: 'public class BrokenTest { void f() { int x = ; } }',
+        },
+      ],
+    })
+
+    expect(value.success).toBe(false)
+    expect(value.timedOut).toBe(false)
+    expect(value.compile?.success).toBe(false)
+    expect(value.compile?.diagnostics.length).toBeGreaterThan(0)
+    expect(value.total).toBe(0)
+    expect(value.reportsDir).toBeNull()
+    expect(value.stdout).toBe('')
+    expect(value.retained).toBe(true)
+  })
+
+  it('terminates the test run on timeout', async () => {
+    const value = await execute({
+      files: [
+        {
+          path: 'SlowTest.java',
+          content: `import org.junit.jupiter.api.Test;
+
+public class SlowTest {
+  @Test
+  void slow() throws Exception { Thread.sleep(30000); }
+}`,
+        },
+      ],
+      timeoutMs: 800,
+    })
+
+    expect(value.success).toBe(false)
+    expect(value.timedOut).toBe(true)
+    expect(value.total).toBe(0)
+    expect(value.retained).toBe(true)
+  }, 20_000)
 })

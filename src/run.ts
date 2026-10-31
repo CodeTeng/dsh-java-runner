@@ -38,6 +38,19 @@ export interface RunCoreResult {
   runnerFailure: string | null
 }
 
+export function jvmRuntimeOptions(maxHeapMb: number): string[] {
+  return [
+    '-Duser.language=en',
+    '-Duser.country=US',
+    '-Dfile.encoding=UTF-8',
+    '-Dstdout.encoding=UTF-8',
+    '-Dstderr.encoding=UTF-8',
+    '-Dsun.stdout.encoding=UTF-8',
+    '-Dsun.stderr.encoding=UTF-8',
+    `-Xmx${maxHeapMb}m`,
+  ]
+}
+
 export function javaArgv(
   jdk: JdkCandidate,
   options: {
@@ -49,14 +62,7 @@ export function javaArgv(
 ): string[] {
   const argv = [
     jdk.javaPath ?? 'java',
-    '-Duser.language=en',
-    '-Duser.country=US',
-    '-Dfile.encoding=UTF-8',
-    '-Dstdout.encoding=UTF-8',
-    '-Dstderr.encoding=UTF-8',
-    '-Dsun.stdout.encoding=UTF-8',
-    '-Dsun.stderr.encoding=UTF-8',
-    `-Xmx${options.maxHeapMb}m`,
+    ...jvmRuntimeOptions(options.maxHeapMb),
   ]
   if (options.classpath.length > 0) {
     argv.push('-cp', options.classpath.join(delimiter))

@@ -6,6 +6,7 @@ export interface Config {
   timeoutMs: number
   maxHeapMb: number
   scratchRoot?: string
+  junitJarPath?: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -14,4 +15,7 @@ export const Config: Schema<Config> = Schema.object({
   timeoutMs: Schema.number().default(15000).description('Default execution timeout in milliseconds'),
   maxHeapMb: Schema.number().default(256).description('Default maximum heap in MiB'),
   scratchRoot: Schema.string().description('Scratch directory root; defaults to <workspace>/.dsh-java'),
+  junitJarPath: Schema.string().description(
+    'junit-platform-console-standalone jar; defaults to ~/.m2, then a verified download into ~/.dsh-java-runner/junit',
+  ),
 })

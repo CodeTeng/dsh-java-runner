@@ -7,6 +7,7 @@ import { JdkResolver } from './jdk.js'
 import { registerCompileTool } from './tools/compile.js'
 import { registerEnvTool } from './tools/env.js'
 import { registerRunTool } from './tools/run.js'
+import { registerTestTool } from './tools/test.js'
 
 export { Config }
 
@@ -18,4 +19,5 @@ export function apply(ctx: Context, config: RunnerConfig): void {
   registerEnvTool(ctx, resolver)
   registerCompileTool(ctx, config, resolver)
   registerRunTool(ctx, config, resolver)
+  registerTestTool(ctx, config, resolver)
 }

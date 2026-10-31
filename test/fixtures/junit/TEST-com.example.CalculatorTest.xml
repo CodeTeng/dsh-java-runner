@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.CalculatorTest" tests="4" skipped="1" failures="1" errors="1" time="0.051">
+  <testcase name="adds()" classname="com.example.CalculatorTest" time="0.002">
+    <system-out><![CDATA[debug output that must not become a failure]]></system-out>
+  </testcase>
+  <testcase name="subtracts()" classname="com.example.CalculatorTest" time="0.003">
+    <failure message="expected: &lt;2&gt; but was: &lt;3&gt;" type="org.opentest4j.AssertionFailedError"><![CDATA[org.opentest4j.AssertionFailedError: expected: <2> but was: <3>
+	at com.example.CalculatorTest.subtracts(CalculatorTest.java:13)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)]]></failure>
+  </testcase>
+  <testcase name="divides()" classname="com.example.CalculatorTest" time="0.001">
+    <error message="/ by zero" type="java.lang.ArithmeticException"><![CDATA[java.lang.ArithmeticException: / by zero
+	at com.example.CalculatorTest.divides(CalculatorTest.java:18)]]></error>
+  </testcase>
+  <testcase name="todo()" classname="com.example.CalculatorTest" time="0">
+    <skipped message="not implemented"/>
+  </testcase>
+</testsuite>
