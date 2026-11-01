@@ -254,13 +254,15 @@ describe.skipIf(!hasJdk)('java tools with a real JDK', () => {
 
   it('runs a main class with a Unicode name', async () => {
     harness = await createHarness()
+    // The Windows launcher passes argv through the active code page, so use a
+    // non-ASCII name that every runner can represent; CJK names need a CJK code page.
     const result = await harness.execute('java_run', {
-      main: '你好',
+      main: 'Café',
       files: [
         {
-          path: '你好.java',
+          path: 'Café.java',
           content:
-            'public class 你好 { public static void main(String[] a) { System.out.println("你好，世界"); } }',
+            'public class Café { public static void main(String[] a) { System.out.println("你好，世界"); } }',
         },
       ],
     })

@@ -318,6 +318,7 @@ The JUnit console jar resolves in this order: `junitJarPath` → `~/.m2` → a S
 | Directory | Plugin | Per-call scratch directory, deleted on success or retained with a reason |
 | Output | Plugin | In-memory caps plus 8 MiB spill files; truncation is explicit |
 | Source reads | Plugin | Inline content or paths contained by the session workspace |
+| Unicode class names | Host JDK launcher | Passed through the native command line; on Windows, a name outside the active code page fails before Java starts. Source text, diagnostics, and output stay UTF-8. |
 | Network on host | Not isolated | Java code can open sockets |
 | Network in Docker | Docker, optional | `dockerNetwork: none` by default; set `bridge` to opt in |
 | Fork bombs | Not prevented | Applies to host and container execution |

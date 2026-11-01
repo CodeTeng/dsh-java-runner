@@ -179,7 +179,7 @@ Phase 1 — compile, run, environment:
 
 - The plugin builds and registers `java_env`, `java_compile`, and `java_run` in a real `ToolRuntime` with the local subprocess provider.
 - `java_env` discovers the JDK from config, `JAVA_HOME`, or `PATH`, probes its version and vendor, and reports failed candidates.
-- `java_run` compiles and runs multi-file programs, passes arguments and stdin, accepts Unicode class names, and returns a terminal card presenter.
+- `java_run` compiles and runs multi-file programs, passes arguments and stdin, accepts Unicode class names that the host's native encoding can represent, and returns a terminal card presenter. On Windows the JDK launcher reads argv through the active code page, so a class name outside it fails before Java starts; source text, diagnostics, and output remain UTF-8.
 - `java_compile` returns structured diagnostics with file, line, column, severity, code, and message; non-ASCII identifiers survive on a zh-CN Windows host.
 - Timeout aborts and terminates the managed process range; the heap cap produces `OutOfMemoryError` under a 16 MiB cap.
 - `read-only`/`workspace-write` calls are confined; `workspace-write` results report the provider's enforcement value.
@@ -212,7 +212,7 @@ Outstanding before the probe release:
 - Integration: real `ToolRuntime` + `LocalSubprocessRuntime` + a temporary workspace; JDK-dependent cases skip when `javac` is absent. JUnit cases additionally require JDK 17+ and a resolvable console jar. JShell cases require a full JDK with `jshell`.
 - Fake-JDK: a fake `subprocess` service returns canned `javac`/`java`/`jshell`/`mvn`/`gradle`/`docker` output, rejects or delays commands on demand, and records every argv/stdin/env/cwd. It covers JDK discovery and failure, compile diagnostics, run argv and stdin, nonzero exits, timeout termination, sandbox confinement, JUnit totals and failures, no-tests failure, compile-failure short circuit, Maven/Gradle detection, wrapper preference, report parsing, JShell argv/cleaning/errors, and Docker mounts, network mode, classpath mapping, and timeout cleanup without a local JDK, Maven, Gradle, or Docker.
 - Covered: multi-file compile, cleanup and retention, structured errors, non-ASCII diagnostics and program output, stdin/args, nonzero exits, timeout termination, heap cap, sandbox confinement, the input boundary, `java_test` pass/fail/skip totals, failure stack traces, method selectors, no-tests failure, compile-failure short circuit, and test timeout; project offline flags, ambiguous build files, missing build files, and no-report builds; and Docker read-only workspace mounts and external classpath entries.
-- CI: `.github/workflows/ci.yml` runs `pnpm install --frozen-lockfile`, typecheck, test, and build on Ubuntu and Windows with Node 24 and pnpm 10.12.1. No JDK, Maven, Gradle, or Docker daemon is installed, so the real-tool suites skip and the fake suite provides coverage.
+- CI: `.github/workflows/ci.yml` runs `pnpm install --frozen-lockfile`, typecheck, test, and build on Ubuntu and Windows with Node 24 and pnpm 10.12.1. The workflow installs no JDK, Maven, Gradle, or Docker daemon; when the runner image already provides a JDK, the real-JDK suite runs, while JUnit cases skip without a seed jar and the fake suite always provides coverage.
 - Planned: a Windows/Linux CI matrix that installs JDK 17 and 21 and seeds the JUnit jar to exercise the real-JDK suites. Real Maven, Gradle, and Docker remain desktop acceptance items because their daemons, caches, and images are environment-specific.
 
 ## 14. Risks

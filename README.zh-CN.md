@@ -318,6 +318,7 @@ JUnit console jar 的解析顺序：`junitJarPath` → `~/.m2` → `~/.dsh-java-
 | 目录 | 插件 | 每次调用独立草稿目录；成功删除，失败保留并说明原因 |
 | 输出 | 插件 | 内存上限 + 8 MiB spill 文件；截断状态显式返回 |
 | 源码读取 | 插件 | 内联内容，或受限于会话工作区的路径 |
+| Unicode 类名 | 主机 JDK 启动器 | 类名经原生命令行传递；Windows 上超出当前代码页的类名会在 Java 启动前失败。源码、诊断与输出始终为 UTF-8。 |
 | 主机网络 | 不隔离 | Java 代码可以建立网络连接 |
 | Docker 网络 | Docker，可选 | 默认 `dockerNetwork: none`；设为 `bridge` 才放行 |
 | fork 炸弹 | 不防 | 主机与容器执行均适用 |

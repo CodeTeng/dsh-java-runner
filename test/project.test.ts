@@ -250,7 +250,7 @@ describe('java_project_test', () => {
       expect(argv[4]).toContain(wrapper)
       expect(argv[4]).toContain('test')
     } else {
-      expect(argv).toContain(wrapper)
+      expect(argv.some((arg) => arg.endsWith(wrapper))).toBe(true)
     }
   })
 
