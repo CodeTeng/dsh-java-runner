@@ -2,6 +2,12 @@ import { delimiter } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SandboxExecutionPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { DockerConfiguration, DockerFacts } from './docker.js'
+import {
+  createDockerPathMapper,
+  runDocker,
+  toContainerPath,
+} from './docker.js'
 import type { JdkCandidate } from './jdk.js'
 import { environmentFor, runProcess } from './proc.js'
 import type { ProcessSandboxFacts } from './proc.js'
@@ -20,6 +26,7 @@ export interface RunOptions {
   timeoutMs: number
   maxHeapMb: number
   classpath: readonly string[]
+  docker: DockerConfiguration | null
 }
 
 export interface RunCoreResult {
@@ -36,6 +43,7 @@ export interface RunCoreResult {
   sandbox: ProcessSandboxFacts | null
   sandboxDenied: boolean
   runnerFailure: string | null
+  docker: DockerFacts | null
 }
 
 export function jvmRuntimeOptions(maxHeapMb: number): string[] {
@@ -52,31 +60,61 @@ export function jvmRuntimeOptions(maxHeapMb: number): string[] {
 }
 
 export function javaArgv(
-  jdk: JdkCandidate,
+  javaCommand: string,
   options: {
     main: string
     args: readonly string[]
     classpath: readonly string[]
     maxHeapMb: number
+    classpathSeparator?: string
   },
 ): string[] {
   const argv = [
-    jdk.javaPath ?? 'java',
+    javaCommand,
     ...jvmRuntimeOptions(options.maxHeapMb),
   ]
   if (options.classpath.length > 0) {
-    argv.push('-cp', options.classpath.join(delimiter))
+    argv.push('-cp', options.classpath.join(options.classpathSeparator ?? delimiter))
   }
   argv.push(options.main, ...options.args)
   return argv
 }
 
 export async function runJava(options: RunOptions): Promise<RunCoreResult> {
-  const classpath = options.outDir === null ? options.classpath : [options.outDir, ...options.classpath]
-  const argv = javaArgv(options.jdk, {
+  const hostClasspath = options.outDir === null ? [...options.classpath] : [options.outDir, ...options.classpath]
+
+  if (options.docker !== null) {
+    const mapper = createDockerPathMapper({
+      workspaceRoot: options.workspaceRoot,
+      workdir: options.workdir,
+    })
+    const classpath = hostClasspath.map((entry) => toContainerPath(mapper, entry))
+    const result = await runDocker({
+      ctx: options.ctx,
+      policy: options.policy,
+      exec: options.exec,
+      configuration: options.docker,
+      mapper,
+      argv: javaArgv('java', {
+        main: options.main,
+        args: options.args,
+        classpath,
+        maxHeapMb: options.maxHeapMb,
+        classpathSeparator: ':',
+      }),
+      stdin: options.stdin,
+      timeoutMs: options.timeoutMs,
+      stdoutMaxBytes: 256 * 1024,
+      stderrMaxBytes: 256 * 1024,
+    })
+    options.exec.signal.throwIfAborted()
+    return { ...withoutAborted(result), docker: result.docker }
+  }
+
+  const argv = javaArgv(options.jdk.javaPath ?? 'java', {
     main: options.main,
     args: options.args,
-    classpath,
+    classpath: hostClasspath,
     maxHeapMb: options.maxHeapMb,
   })
 
@@ -94,6 +132,27 @@ export async function runJava(options: RunOptions): Promise<RunCoreResult> {
   })
   options.exec.signal.throwIfAborted()
 
+  return {
+    ...withoutAborted(result),
+    docker: null,
+  }
+}
+
+function withoutAborted(result: {
+  exitCode: number | null
+  signal: string | null
+  stdout: string
+  stderr: string
+  stdoutTruncated: boolean
+  stderrTruncated: boolean
+  stdoutSpillPath: string | null
+  stderrSpillPath: string | null
+  durationMs: number
+  timedOut: boolean
+  sandbox: ProcessSandboxFacts | null
+  sandboxDenied: boolean
+  runnerFailure: string | null
+}): Omit<RunCoreResult, 'docker'> {
   return {
     exitCode: result.exitCode,
     signal: result.signal,

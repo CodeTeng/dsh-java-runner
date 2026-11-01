@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import type {
@@ -7,7 +7,18 @@ import type {
   SubprocessSpawnSpec,
 } from '@deepseek-ai/dsh-subprocess'
 
-export type FakeJdkKind = 'javac' | 'java'
+export type FakeJdkKind =
+  | 'javac'
+  | 'java'
+  | 'jshell'
+  | 'mvn'
+  | 'gradle'
+  | 'docker'
+  | 'cmd'
+  | 'sh'
+  | 'other'
+
+const FAKE_PROGRAMS = ['javac', 'java', 'jshell', 'mvn', 'gradle', 'docker'] as const
 
 export interface FakeJdkCall {
   kind: FakeJdkKind
@@ -53,8 +64,10 @@ export class FakeJdk {
 
   readonly service = {
     resolveExecutable: async (command: string): Promise<string> => {
-      if (command === 'javac' || command === 'java') {
-        return join(this.home, 'bin', executableName(command))
+      if ((FAKE_PROGRAMS as readonly string[]).includes(command)) {
+        const path = join(this.home, 'bin', executableName(command))
+        await access(path)
+        return path
       }
       throw new Error(`fake subprocess: ${command} is not on PATH`)
     },
@@ -139,15 +152,18 @@ export class FakeJdk {
     if (call.kind === 'javac') {
       return call.probe ? { stdout: `javac ${this.options.javacVersion}\n` } : { exitCode: 0 }
     }
-    return call.probe
-      ? {
-          stderr: [
-            `    java.version = ${this.options.javaVersion}`,
-            `    java.vendor = ${this.options.vendor}`,
-            '',
-          ].join('\n'),
-        }
-      : { stdout: 'fake java\n', exitCode: 0 }
+    if (call.kind === 'java') {
+      return call.probe
+        ? {
+            stderr: [
+              `    java.version = ${this.options.javaVersion}`,
+              `    java.vendor = ${this.options.vendor}`,
+              '',
+            ].join('\n'),
+          }
+        : { stdout: 'fake java\n', exitCode: 0 }
+    }
+    return { exitCode: 0 }
   }
 }
 
@@ -155,8 +171,9 @@ export async function createFakeJdk(options: FakeJdkOptions = {}): Promise<FakeJ
   const home = await mkdtemp(join(tmpdir(), 'dsh-fake-jdk-'))
   const bin = join(home, 'bin')
   await mkdir(bin, { recursive: true })
-  await writeFile(join(bin, executableName('javac')), '')
-  await writeFile(join(bin, executableName('java')), '')
+  for (const program of FAKE_PROGRAMS) {
+    await writeFile(join(bin, executableName(program)), '')
+  }
   const jarPath = join(home, 'fake-junit.jar')
   await writeFile(jarPath, '')
   return new FakeJdk(home, jarPath, {
@@ -171,13 +188,24 @@ function executableName(command: string): string {
 }
 
 function kindOf(program: string | undefined): FakeJdkKind {
-  const name = basename(program ?? '').replace(/\.exe$/i, '')
-  return name.startsWith('javac') ? 'javac' : 'java'
+  const name = basename(program ?? '')
+    .toLowerCase()
+    .replace(/\.(?:exe|com|cmd|bat)$/, '')
+  if (name.startsWith('javac')) return 'javac'
+  if (name === 'java') return 'java'
+  if (name === 'jshell') return 'jshell'
+  if (name.startsWith('mvn')) return 'mvn'
+  if (name.startsWith('gradle')) return 'gradle'
+  if (name === 'docker') return 'docker'
+  if (name === 'cmd') return 'cmd'
+  if (name === 'sh' || name === 'bash') return 'sh'
+  return 'other'
 }
 
 function isProbe(kind: FakeJdkKind, argv: readonly string[]): boolean {
   if (kind === 'javac') return argv[1] === '-version'
-  return argv.includes('-XshowSettings:properties')
+  if (kind === 'java') return argv.includes('-XshowSettings:properties')
+  return false
 }
 
 function readerOf(text: () => string) {

@@ -2,6 +2,12 @@ import { delimiter, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SandboxExecutionPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { DockerConfiguration, DockerFacts } from './docker.js'
+import {
+  createDockerPathMapper,
+  runDocker,
+  toContainerPath,
+} from './docker.js'
 import type { JdkCandidate } from './jdk.js'
 import { parseJunitReports } from './parsers/junit.js'
 import type { JunitFailure } from './parsers/junit.js'
@@ -22,6 +28,7 @@ export interface JunitRunOptions {
   tests: readonly string[]
   timeoutMs: number
   maxHeapMb: number
+  docker: DockerConfiguration | null
 }
 
 export interface JunitRunResult {
@@ -45,26 +52,28 @@ export interface JunitRunResult {
   sandbox: ProcessSandboxFacts | null
   sandboxDenied: boolean
   runnerFailure: string | null
+  docker: DockerFacts | null
 }
 
 export function junitArgv(
-  jdk: JdkCandidate,
+  javaCommand: string,
   options: {
     jarPath: string
     classpath: readonly string[]
     reportsDir: string
     tests: readonly string[]
     maxHeapMb: number
+    classpathSeparator?: string
   },
 ): string[] {
   const argv = [
-    jdk.javaPath ?? 'java',
+    javaCommand,
     ...jvmRuntimeOptions(options.maxHeapMb),
     '-jar',
     options.jarPath,
     'execute',
     '--class-path',
-    options.classpath.join(delimiter),
+    options.classpath.join(options.classpathSeparator ?? delimiter),
     '--reports-dir',
     options.reportsDir,
     '--details=none',
@@ -84,25 +93,56 @@ export function junitArgv(
 
 export async function runJunit(options: JunitRunOptions): Promise<JunitRunResult> {
   const reportsDir = join(options.workdir, 'reports')
-  const argv = junitArgv(options.jdk, {
-    jarPath: options.jarPath,
-    classpath: [options.outDir, ...options.classpath],
-    reportsDir,
-    tests: options.tests,
-    maxHeapMb: options.maxHeapMb,
-  })
+  const hostClasspath = [options.outDir, ...options.classpath]
 
-  const result = await runProcess(options.ctx, {
-    argv,
-    cwd: options.workspaceRoot,
-    env: environmentFor(options.jdk.home),
-    timeoutMs: options.timeoutMs,
-    signal: options.exec.signal,
-    spillDir: options.workdir,
-    policy: options.policy,
-    stdoutMaxBytes: 256 * 1024,
-    stderrMaxBytes: 256 * 1024,
-  })
+  let result
+  let docker: DockerFacts | null = null
+  if (options.docker !== null) {
+    const mapper = createDockerPathMapper({
+      workspaceRoot: options.workspaceRoot,
+      workdir: options.workdir,
+      junitJar: options.jarPath,
+    })
+    const containerClasspath = hostClasspath.map((entry) => toContainerPath(mapper, entry))
+    result = await runDocker({
+      ctx: options.ctx,
+      policy: options.policy,
+      exec: options.exec,
+      configuration: options.docker,
+      mapper,
+      argv: junitArgv('java', {
+        jarPath: toContainerPath(mapper, options.jarPath),
+        classpath: containerClasspath,
+        reportsDir: '/dsh-work/reports',
+        tests: options.tests,
+        maxHeapMb: options.maxHeapMb,
+        classpathSeparator: ':',
+      }),
+      timeoutMs: options.timeoutMs,
+      stdoutMaxBytes: 256 * 1024,
+      stderrMaxBytes: 256 * 1024,
+    })
+    docker = result.docker
+  } else {
+    const argv = junitArgv(options.jdk.javaPath ?? 'java', {
+      jarPath: options.jarPath,
+      classpath: hostClasspath,
+      reportsDir,
+      tests: options.tests,
+      maxHeapMb: options.maxHeapMb,
+    })
+    result = await runProcess(options.ctx, {
+      argv,
+      cwd: options.workspaceRoot,
+      env: environmentFor(options.jdk.home),
+      timeoutMs: options.timeoutMs,
+      signal: options.exec.signal,
+      spillDir: options.workdir,
+      policy: options.policy,
+      stdoutMaxBytes: 256 * 1024,
+      stderrMaxBytes: 256 * 1024,
+    })
+  }
   options.exec.signal.throwIfAborted()
 
   const reports = await parseJunitReports(reportsDir)
@@ -128,5 +168,6 @@ export async function runJunit(options: JunitRunOptions): Promise<JunitRunResult
     sandbox: result.sandbox,
     sandboxDenied: result.sandboxDenied,
     runnerFailure: result.runnerFailure,
+    docker,
   }
 }

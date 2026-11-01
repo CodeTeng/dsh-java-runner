@@ -1,7 +1,7 @@
 {
   "name": "dsh-java-runner",
   "version": "0.1.0-alpha.0",
-  "description": "Java compile, run, and test tools for DeepSeek Harness",
+  "description": "Java compile, run, test, and evaluate tools for DeepSeek Harness",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

@@ -23,6 +23,16 @@ const jdkMajor = (() => {
 
 const hasJdk = jdkMajor > 0
 
+const hasJshell = (() => {
+  if (!hasJdk) return false
+  try {
+    execFileSync('jshell', ['--version'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+})()
+
 const junitJar = (() => {
   const candidates: (string | undefined)[] = [
     process.env['JUNIT_JAR'],
@@ -118,7 +128,7 @@ afterAll(async () => {
 describe('plugin loading', () => {
   it('registers the Java tools in a real tool runtime', async () => {
     harness = await createHarness()
-    for (const name of ['java_env', 'java_compile', 'java_run', 'java_test']) {
+    for (const name of ['java_env', 'java_compile', 'java_run', 'java_test', 'java_project_test']) {
       expect(harness.ctx.tools.get(name)?.name).toBe(name)
     }
   })
@@ -426,6 +436,78 @@ public class Main {
     expect(harness.sandboxCalls).toHaveLength(2)
     expect(value.stdout.trim()).toBe('ok')
   })
+})
+
+interface EvalResult {
+  success: boolean
+  timedOut: boolean
+  exitCode: number | null
+  stdout: string
+  stderr: string
+  errors: string[]
+  retained: boolean
+  workdir: string | null
+  scriptPath: string | null
+}
+
+describe.skipIf(!hasJshell)('java_eval with a real JShell', () => {
+  it('evaluates a snippet and prints explicit output', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_eval', {
+      code: 'System.out.println("你好" + (1 + 1));',
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as unknown as EvalResult
+    expect(value.success).toBe(true)
+    expect(value.exitCode).toBe(0)
+    expect(value.stdout.trim()).toBe('你好2')
+    expect(value.errors).toEqual([])
+    expect(value.retained).toBe(false)
+    expect(value.workdir).toBeNull()
+  })
+
+  it('reports compile errors as a failed evaluation', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_eval', {
+      code: 'int y = ;',
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as unknown as EvalResult
+    expect(value.success).toBe(false)
+    expect(value.exitCode).toBe(0)
+    expect(value.errors[0]).toBe('Error:')
+    expect(value.retained).toBe(true)
+    expect(value.scriptPath).not.toBeNull()
+  })
+
+  it('reports runtime exceptions as a failed evaluation', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_eval', {
+      code: 'throw new IllegalStateException("boom");',
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as unknown as EvalResult
+    expect(value.success).toBe(false)
+    expect(value.errors.some((error) => error.includes('IllegalStateException'))).toBe(true)
+    expect(value.errors.some((error) => error.includes('boom'))).toBe(true)
+  })
+
+  it('terminates a hanging snippet on timeout', async () => {
+    harness = await createHarness()
+    const result = await harness.execute('java_eval', {
+      code: 'while (true) {}',
+      timeoutMs: 800,
+    })
+    expect(result.isError).toBe(false)
+    if (result.isError) return
+    const value = result.value as unknown as EvalResult
+    expect(value.success).toBe(false)
+    expect(value.timedOut).toBe(true)
+    expect(value.retained).toBe(true)
+  }, 20_000)
 })
 
 interface JunitResult {

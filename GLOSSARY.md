@@ -22,6 +22,26 @@ _Avoid_: log file, dump
 A source file supplied to a tool by its path inside the session workspace, rather than by inline content.
 _Avoid_: local file, disk file
 
+**Project test**:
+A test run delegated to a project's own Maven or Gradle build, as opposed to the plugin's own compiler and JUnit launcher.
+_Avoid_: build test, integration test
+
+**Build wrapper**:
+The checked-in `mvnw`/`mvnw.cmd` or `gradlew`/`gradlew.bat` script that a project test prefers over a PATH-installed build tool.
+_Avoid_: build script, launcher
+
+**JShell evaluation**:
+A single stateless execution of a script through `jshell`; it does not preserve definitions between calls.
+_Avoid_: REPL, interactive session
+
+**Execution container**:
+The Docker container that runs user code from `java_run`, `java_test`, or `java_eval` when `dockerImage` is configured.
+_Avoid_: sandbox, VM
+
+**Container path mapping**:
+The translation of host paths into container mount targets for the workspace, scratch directory, JUnit jar, and external classpath entries.
+_Avoid_: path rewrite, volume path
+
 ### Diagnostics
 
 **Diagnostic**:

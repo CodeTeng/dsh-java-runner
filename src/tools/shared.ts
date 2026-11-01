@@ -59,6 +59,22 @@ export const sandboxFactsSchema = {
   required: true,
 } as const
 
+export const dockerFactsSchema = {
+  oneOf: [
+    { type: 'null' },
+    {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        image: { type: 'string', required: true },
+        network: { type: 'string', required: true },
+        container: { type: 'string', required: true },
+      },
+    },
+  ],
+  required: true,
+} as const
+
 export const diagnosticsSchema = {
   type: 'array',
   required: true,
@@ -72,6 +88,20 @@ export const diagnosticsSchema = {
       severity: { type: 'string', required: true },
       code: { type: 'string', required: true },
       message: { type: 'string', required: true },
+    },
+  },
+} as const
+
+export const junitFailuresSchema = {
+  type: 'array',
+  required: true,
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      test: { type: 'string', required: true },
+      message: { type: 'string', required: true },
+      stackTrace: { type: 'string', required: true },
     },
   },
 } as const

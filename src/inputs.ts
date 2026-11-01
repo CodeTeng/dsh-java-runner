@@ -24,13 +24,21 @@ export async function createScratch(
   scratchRoot: string | undefined,
   callId: string,
 ): Promise<ScratchDirectory> {
-  const root = resolve(scratchRoot ?? join(workspaceRoot, '.dsh-java'))
-  await mkdir(root, { recursive: true })
-  const prefix = `${sanitizeSegment(callId)}-`
-  const workdir = await mkdtemp(join(root, prefix))
+  const workdir = await createWorkdir(workspaceRoot, scratchRoot, callId)
   const outDir = join(workdir, 'classes')
   await mkdir(outDir, { recursive: true })
   return { workdir, outDir }
+}
+
+export async function createWorkdir(
+  workspaceRoot: string,
+  scratchRoot: string | undefined,
+  callId: string,
+): Promise<string> {
+  const root = resolve(scratchRoot ?? join(workspaceRoot, '.dsh-java'))
+  await mkdir(root, { recursive: true })
+  const prefix = `${sanitizeSegment(callId)}-`
+  return mkdtemp(join(root, prefix))
 }
 
 export async function removeScratch(workdir: string): Promise<void> {

@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Config } from '../config.js'
 import { compileJava, resolveClasspath } from '../compile.js'
+import { dockerConfiguration } from '../docker.js'
 import type { JunitFailure } from '../parsers/junit.js'
 import type { SourceFileRequest } from '../inputs.js'
 import { createScratch, removeScratch } from '../inputs.js'
@@ -12,6 +13,8 @@ import { runJunit } from '../junit.js'
 import {
   compileSummarySchema,
   decideRetention,
+  dockerFactsSchema,
+  junitFailuresSchema,
   nullableNumber,
   nullableString,
   renderDiagnostics,
@@ -36,20 +39,6 @@ const filesSchema = {
         type: 'string',
         description: 'Inline source text; when omitted the file is read from the workspace',
       },
-    },
-  },
-} as const
-
-const failuresSchema = {
-  type: 'array',
-  required: true,
-  items: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      test: { type: 'string', required: true },
-      message: { type: 'string', required: true },
-      stackTrace: { type: 'string', required: true },
     },
   },
 } as const
@@ -134,7 +123,7 @@ export function registerTestTool(
             passed: { type: 'number', required: true },
             failed: { type: 'number', required: true },
             skipped: { type: 'number', required: true },
-            failures: failuresSchema,
+            failures: junitFailuresSchema,
             reportFiles: { type: 'number', required: true },
             compile: compileSummarySchema,
             jar: jarSchema,
@@ -152,6 +141,7 @@ export function registerTestTool(
             sandbox: sandboxFactsSchema,
             sandboxDenied: { type: 'boolean', required: true },
             runnerFailure: nullableString,
+            docker: dockerFactsSchema,
           },
         },
         presentationMeta: (_args, value) => ({
@@ -254,6 +244,12 @@ export function registerTestTool(
           if (value.runnerFailure !== null) {
             lines.push('', `Sandbox runner failure: ${value.runnerFailure}`)
           }
+          if (value.docker !== null) {
+            lines.push(
+              '',
+              `Docker: ${value.docker.image} (network ${value.docker.network}, container ${value.docker.container})`,
+            )
+          }
           lines.push('', `JUnit console: ${value.jar.path} (${value.jar.source})`)
           if (value.retained && value.workdir !== null) {
             lines.push(`Scratch directory kept at ${value.workdir}`)
@@ -306,6 +302,7 @@ export function registerTestTool(
 
         const policy = resolvePolicy(ctx, exec)
         const workspaceRoot = policy.workspaceRoot
+        const docker = dockerConfiguration(config)
         const classpath = resolveClasspath(args.classpath, workspaceRoot)
         const keepWorkdir = args.keepWorkdir ?? false
         const jar = await resolveJunitJar(config, exec.signal)
@@ -376,6 +373,7 @@ export function registerTestTool(
               sandbox: compiled.sandbox,
               sandboxDenied: compiled.sandboxDenied,
               runnerFailure: compiled.runnerFailure,
+              docker: null,
             }
           }
 
@@ -392,6 +390,7 @@ export function registerTestTool(
             tests,
             timeoutMs,
             maxHeapMb,
+            docker,
           })
 
           const truncated = run.stdoutTruncated || run.stderrTruncated
@@ -437,6 +436,7 @@ export function registerTestTool(
             sandbox: run.sandbox,
             sandboxDenied: run.sandboxDenied,
             runnerFailure: run.runnerFailure,
+            docker: run.docker,
           }
         } catch (error) {
           if (!keepWorkdir) {

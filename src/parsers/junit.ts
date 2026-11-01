@@ -25,23 +25,24 @@ export async function parseJunitReports(directory: string): Promise<JunitReportS
   try {
     names = await readdir(directory)
   } catch {
-    return { total: 0, passed: 0, failed: 0, skipped: 0, failures: [], reportFiles: 0 }
+    return emptySummary()
   }
+  return parseJunitReportFiles(
+    names
+      .filter((name) => name.startsWith('TEST-') && name.endsWith('.xml'))
+      .sort()
+      .map((name) => join(directory, name)),
+  )
+}
 
-  const files = names.filter((name) => name.startsWith('TEST-') && name.endsWith('.xml'))
-  const summary: JunitReportSummary = {
-    total: 0,
-    passed: 0,
-    failed: 0,
-    skipped: 0,
-    failures: [],
-    reportFiles: 0,
-  }
-
-  for (const name of files.sort()) {
+export async function parseJunitReportFiles(
+  files: readonly string[],
+): Promise<JunitReportSummary> {
+  const summary = emptySummary()
+  for (const file of [...files].sort()) {
     let xml: string
     try {
-      xml = await readFile(join(directory, name), 'utf8')
+      xml = await readFile(file, 'utf8')
     } catch {
       continue
     }
@@ -62,8 +63,11 @@ export async function parseJunitReports(directory: string): Promise<JunitReportS
       }
     }
   }
-
   return summary
+}
+
+function emptySummary(): JunitReportSummary {
+  return { total: 0, passed: 0, failed: 0, skipped: 0, failures: [], reportFiles: 0 }
 }
 
 interface ParsedTestcase {

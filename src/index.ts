@@ -6,6 +6,8 @@ import type { Config as RunnerConfig } from './config.js'
 import { JdkResolver } from './jdk.js'
 import { registerCompileTool } from './tools/compile.js'
 import { registerEnvTool } from './tools/env.js'
+import { registerEvalTool } from './tools/eval.js'
+import { registerProjectTestTool } from './tools/project-test.js'
 import { registerRunTool } from './tools/run.js'
 import { registerTestTool } from './tools/test.js'
 
@@ -20,4 +22,6 @@ export function apply(ctx: Context, config: RunnerConfig): void {
   registerCompileTool(ctx, config, resolver)
   registerRunTool(ctx, config, resolver)
   registerTestTool(ctx, config, resolver)
+  registerProjectTestTool(ctx, config, resolver)
+  registerEvalTool(ctx, config, resolver)
 }

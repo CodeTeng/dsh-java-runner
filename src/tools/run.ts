@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Config } from '../config.js'
 import { compileJava, resolveClasspath } from '../compile.js'
+import { dockerConfiguration } from '../docker.js'
 import type { Diagnostic } from '../parsers/javac.js'
 import type { SourceFileRequest } from '../inputs.js'
 import { createScratch, removeScratch } from '../inputs.js'
@@ -11,6 +12,7 @@ import {
   compileSummarySchema,
   countSeverities,
   decideRetention,
+  dockerFactsSchema,
   nullableNumber,
   nullableString,
   renderDiagnostics,
@@ -127,6 +129,7 @@ export function registerRunTool(
             sandbox: sandboxFactsSchema,
             sandboxDenied: { type: 'boolean', required: true },
             runnerFailure: nullableString,
+            docker: dockerFactsSchema,
             stdoutSpillPath: nullableString,
             stderrSpillPath: nullableString,
           },
@@ -192,6 +195,12 @@ export function registerRunTool(
           if (value.runnerFailure !== null) {
             lines.push('', `Sandbox runner failure: ${value.runnerFailure}`)
           }
+          if (value.docker !== null) {
+            lines.push(
+              '',
+              `Docker: ${value.docker.image} (network ${value.docker.network}, container ${value.docker.container})`,
+            )
+          }
           if (value.retained && value.workdir !== null) {
             lines.push('', `Scratch directory kept at ${value.workdir}`)
           }
@@ -250,6 +259,7 @@ export function registerRunTool(
 
         const policy = resolvePolicy(ctx, exec)
         const workspaceRoot = policy.workspaceRoot
+        const docker = dockerConfiguration(config)
         const scratch = await createScratch(
           workspaceRoot,
           config.scratchRoot,
@@ -327,6 +337,7 @@ export function registerRunTool(
                 sandbox: compiled.sandbox,
                 sandboxDenied: compiled.sandboxDenied,
                 runnerFailure: compiled.runnerFailure,
+                docker: null,
                 stdoutSpillPath: compiled.stdoutSpillPath,
                 stderrSpillPath: compiled.stderrSpillPath,
               }
@@ -347,6 +358,7 @@ export function registerRunTool(
             timeoutMs,
             maxHeapMb,
             classpath,
+            docker,
           })
 
           const truncated = run.stdoutTruncated || run.stderrTruncated
@@ -381,6 +393,7 @@ export function registerRunTool(
             sandbox: run.sandbox,
             sandboxDenied: run.sandboxDenied,
             runnerFailure: run.runnerFailure,
+            docker: run.docker,
             stdoutSpillPath: run.stdoutSpillPath,
             stderrSpillPath: run.stderrSpillPath,
           }
