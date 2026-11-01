@@ -138,7 +138,7 @@ Sources are either inline content or workspace-relative paths (ADR-0003). The ho
 | Source reads | Plugin | Inline content or workspace-contained paths (ADR-0003) |
 | Network (host) | Not isolated | Java code can open sockets |
 | Network (Docker) | Docker, optional | `dockerNetwork: none` by default; set `bridge` to opt in |
-| Filesystem (Docker) | Docker, optional | Only the workspace, scratch, JUnit jar, and external classpath entries are mounted; no host environment is forwarded; workspace mount is `ro` under `read-only` |
+| Filesystem (Docker) | Docker, optional | Only the workspace, scratch, JUnit jar, and external classpath entries are mounted; no host environment is passed into the container; workspace mount is `ro` under `read-only` |
 | Fork bombs | Not prevented | Documented limitation on the host and in the container |
 
 The plugin surfaces DSH's enforcement facts (`enforcement`, denial signatures, runner-failure rules) rather than claiming absolute isolation. Docker is an operator-provided extra boundary, not a sandbox backend: the Docker CLI still runs under DSH's policy, mounts enforce the workspace access mode, and the plugin cannot constrain how the image itself is built or what privileges the Docker daemon grants.
@@ -196,7 +196,7 @@ Phase 3 — projects, JShell, Docker:
 
 - `java_project_test` detects Maven or Gradle, prefers project wrappers, falls back to `PATH`, applies a longer build timeout and offline mode, and parses surefire/Gradle XML into the same totals and failure records as `java_test` (ADR-0009).
 - `java_eval` runs one JShell script per call with classpath, heap cap, timeout, and error detection from JShell output (ADR-0010).
-- Setting `dockerImage` runs user code from `java_run`, `java_test`, and `java_eval` in a container with no host environment, constrained mounts, and `--network none` by default; timeouts force-remove the container (ADR-0011). Compilation and `java_project_test` stay on the host.
+- Setting `dockerImage` runs user code from `java_run`, `java_test`, and `java_eval` in a container with no host environment passed in, constrained mounts, and `--network none` by default; timeouts force-remove the container (ADR-0011). Compilation and `java_project_test` stay on the host.
 - The fake harness covers project detection and report parsing, JShell argv/output handling, Docker argv/mount/network/classpath mapping, and container cleanup, so CI still runs without Maven, Gradle, or Docker.
 
 Outstanding before the probe release:

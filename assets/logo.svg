@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="dsh-java-runner logo">
+  <defs>
+    <linearGradient id="bg" x1="48" y1="24" x2="472" y2="488" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#080F1C"/>
+      <stop offset="0.55" stop-color="#0D2035"/>
+      <stop offset="1" stop-color="#12445A"/>
+    </linearGradient>
+    <linearGradient id="prompt" x1="310" y1="190" x2="460" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A5F3FC"/>
+      <stop offset="0.55" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#0284C7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(374 276) rotate(90) scale(150)">
+      <stop stop-color="#22D3EE" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="url(#bg)"/>
+  <rect x="8.75" y="8.75" width="494.5" height="494.5" rx="119.25" fill="none" stroke="#67E8F9" stroke-opacity="0.2" stroke-width="1.5"/>
+
+  <circle cx="92" cy="86" r="10" fill="#F87171"/>
+  <circle cx="126" cy="86" r="10" fill="#FBBF24"/>
+  <circle cx="160" cy="86" r="10" fill="#34D399"/>
+  <path d="M72 120H440" stroke="#E2E8F0" stroke-opacity="0.12" stroke-width="2" stroke-linecap="round"/>
+
+  <circle cx="374" cy="276" r="150" fill="url(#glow)"/>
+
+  <path d="M150 168H286V292C286 344 256 374 208 374C168 374 141 351 134 319L182 305C188 327 198 337 210 337C224 337 234 327 234 311V216H150Z" fill="#F8FAFC"/>
+  <path d="M310 198L392 256L310 314" fill="none" stroke="url(#prompt)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="420" y="278" width="40" height="78" rx="10" fill="url(#prompt)"/>
+
+  <rect x="132" y="410" width="104" height="10" rx="5" fill="#94A3B8" fill-opacity="0.35"/>
+  <rect x="248" y="410" width="52" height="10" rx="5" fill="#22D3EE" fill-opacity="0.8"/>
+</svg>

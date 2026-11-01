@@ -9,7 +9,7 @@ The container is created with `--rm --init --name dsh-java-<pid>-<callId> --netw
 - the JUnit console jar at `/dsh-libs/junit.jar` (read-only);
 - each external classpath entry at `/dsh-libs/cp-N` (read-only), deduplicated case-insensitively on Windows.
 
-No host environment is forwarded. Classpath separators are rewritten to `:`, and the working directory is `/workspace`. On timeout or abort, the plugin best-effort runs `docker rm --force` because aborting the CLI does not necessarily stop the container.
+No host environment is passed into the container (the plugin adds no `-e` flags); the Docker CLI itself still runs with the harness's scrubbed parent environment. Classpath separators are rewritten to `:`, and the working directory is `/workspace`. On timeout or abort, the plugin best-effort runs `docker rm --force` because aborting the CLI does not necessarily stop the container.
 
 Why not compile in the container: the image's JDK may differ from the JDK that `java_env` reports, and diagnostics are the plugin's contract; compiling at home keeps error positions and class output on paths the caller can inspect. Why not delegate project builds into the container: Maven and Gradle need their dependency caches and usually the network, which defeats the point of `--network none`.
 
